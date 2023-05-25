@@ -1,10 +1,10 @@
 name: LEURN
- 
+
 channels:
     - defaults
     - nvidia
     - conda-forge
- 
+
 dependencies:
     - pip=21.1.3
     - python=3.7.10
@@ -13,9 +13,11 @@ dependencies:
     - conda-forge::cudnn=8.1
     - scikit-learn
     - openml
- 
+
     - pip:
-        - tensorflow-gpu==2.9.1
-        - numpy
-        - scipy
-        - matplotlib
+          - tensorflow>=2.9.1
+          - numpy
+          - scipy
+          - matplotlib
+          - openpyxl
+          - pandas
