@@ -1,6 +1,7 @@
 best_model_housing.data-00000-of-00001
 best_model_housing.index
 checkpoint
+leurn_demo
 
 test_env
 setup_env.sh
