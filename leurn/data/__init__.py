@@ -1,8 +1,7 @@
 import os
+import pkgutil
 
 import pandas as pd
-
-_local_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 def load(dataset_name: str = "housing") -> pd.DataFrame:
@@ -15,8 +14,7 @@ def load(dataset_name: str = "housing") -> pd.DataFrame:
         pd.DataFrame: Dataframe containing the dataset
     """
     if dataset_name == "housing":
-        path = os.path.join(_local_dir, "housing.xlsx")
-        data_frame = pd.read_excel(path)
+        data_frame = pd.read_excel(pkgutil.get_data(__name__, "housing.xlsx"))
     else:
         raise ValueError(f"Dataset {dataset_name} not found")
     return data_frame

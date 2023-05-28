@@ -1,5 +1,8 @@
 import os
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 import warnings
+from argparse import ArgumentParser
 
 import numpy as np
 import tensorflow as tf
@@ -8,8 +11,11 @@ from leurn.data import load
 from leurn.utils import explainer, read_partition_process_data, train_model
 
 
+def helloworld():
+    print("Hello world!")
+
+
 def main():
-    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
     tf.debugging.set_log_device_placement(False)
     tf.autograph.set_verbosity(0)
 

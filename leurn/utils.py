@@ -6,7 +6,6 @@ Copyright (c) 2023 Caglar Aytekin
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow.keras.backend as K
 from sklearn import metrics
 
 from .models import def_model, model_train, prepare_dataset
@@ -123,13 +122,13 @@ def explainer(model_analyse, test_sample, quantization_regions, feat_names, y_ma
     contrib = weight_now * embed
     contrib = np.reshape(contrib, [-1, feat_no])
     #   DEPTH x QUANT x FEATURE
-    contrib_bias_added = (K.sum(contrib) + bias_now) * contrib / (K.sum(contrib))
-    Final_Contributions = K.sum(contrib_bias_added, 0) * y_max
+    contrib_bias_added = (tf.reduce_sum(contrib) + bias_now) * contrib / (tf.reduce_sum(contrib))
+    Final_Contributions = tf.reduce_sum(contrib_bias_added, 0) * y_max
     Final_Feat_Name = feat_names
     # GLOBAL FEATURE IMPORTANCE (ROUGH)
-    weight_now = K.abs(np.reshape(weight_now, [-1, feat_no]))
-    Global_Feat_Imp = K.sum(weight_now, 0)
-    Global_Feat_Imp = Global_Feat_Imp / K.sum(Global_Feat_Imp)
+    weight_now = tf.math.abs(np.reshape(weight_now, [-1, feat_no]))
+    Global_Feat_Imp = tf.reduce_sum(weight_now, 0)
+    Global_Feat_Imp = Global_Feat_Imp / tf.reduce_sum(Global_Feat_Imp)
     Final_Feat_Name = np.concatenate([Final_Feat_Name, np.array(["score"])])
     Global_Feat_Imp = np.concatenate([Global_Feat_Imp, np.array(["-"])])
     Final_Contributions = np.concatenate([Final_Contributions, np.array([np.sum(Final_Contributions)])])

@@ -1,3 +1,7 @@
+best_model_housing.data-00000-of-00001
+best_model_housing.index
+checkpoint
+
 test_env
 setup_env.sh
 sftp-config*
@@ -8,6 +12,7 @@ sftp-config*
 Icon*
 .vscode
 .idea
+.test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
