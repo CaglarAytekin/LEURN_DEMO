@@ -9,11 +9,23 @@ This work is licensed under a Creative Commons Attribution-NonCommercial-NoDeriv
 
 ## Installation
 
+### Install using pip
+
+[Create personal access token on github](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+
 ```bash
-pip install -r requirements.txt
+pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.1
 ```
 
-Running the demo
+### Install from source
+
+```bash
+git clone git@github.com:CaglarAytekin/LEURN_DEMO.git
+cd LEURN_DEMO
+pip install .
+```
+
+## Running the demo
 
 ```bash
 leurn-demo --help
