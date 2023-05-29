@@ -7,6 +7,11 @@ A demo is provided for training and making local explanations in Demo.py
 This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
 (<https://creativecommons.org/licenses/by-nc-nd/4.0/>)
 
+This demo only includes local feature contributions and global feature importance as explanation.
+Many features in the paper and later developed features are not included in the demo version.
+
+Refer to example.py or leurn/demo.py for a quick demo.
+
 ## Installation
 
 ### Install using pip
@@ -50,7 +55,7 @@ leurn-demo --help
 leurn-demo -path /tmp/housing -e 100 -c 2
 ```
 
-Runing the tensorboard for monitoring the training process
+Running the tensorboard for monitoring the training process
 
 ```bash
 tensorboard --logdir=/tmp/housing
@@ -64,7 +69,7 @@ import json
 model_config = json.load(open("/tmp/housing/model_config.json"))
 model = LEURN(**model_config)
 model.load_weights("/tmp/housing/best_model")
-explain = model.explain(X_test, feat_names=X_names, y_max=y_max)
+explain = model.explain(X_test[0:1,:], feat_names=X_names, y_max=y_max)
 plot_explaination(explain, "/tmp/explain.png")
 ```
 
