@@ -77,7 +77,15 @@ def read_partition_process_data(filename: Union[str, pd.DataFrame], target_name:
         y_val = y_val / y_max
         y_test = y_test / y_max
         y_max = tf.cast(y_max, dtype=tf.float32)
-    return X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean
+        
+    #Standardize the dataset:
+    X_mean=np.mean(X_train,axis=0,keepdims=True)
+    X_std=np.std(X_train,axis=0,keepdims=True)
+    X_train=(X_train-X_mean)/(X_std+1e-6)
+    X_val=(X_val-X_mean)/(X_std+1e-6)
+    X_test=(X_test-X_mean)/(X_std+1e-6)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean,X_std
 
 
 def prepare_dataset_for_tf(X_tr, Y_tr, X_val, Y_val, batch_no):

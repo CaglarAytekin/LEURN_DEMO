@@ -67,7 +67,7 @@ def main():
     tasktype = "reg"
 
     # READ, PARTITION AND PROCESS THE DATA
-    X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean = read_partition_process_data(
+    X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean, X_std = read_partition_process_data(
         load_data("housing"), target_name="median_house_value", task_type=tasktype
     )
 
