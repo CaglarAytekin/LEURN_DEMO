@@ -206,19 +206,21 @@ def plot_explaination(Explanation: pd.DataFrame, output_path: str):
 
     sns.set()
     feat_name = Explanation["Feature Name"].values
-    importance = Explanation["Global_Importance"].values
+    importance = Explanation["Global_Importance"].values[:-1]
+    importance = np.array(importance)
+    importance = importance.astype(np.float)
     contribution = Explanation["Contribution"].values
 
     n_features = len(feat_name)
     plt.figure(figsize=(30 if n_features >= 20 else 20, 8), dpi=200)
 
     plt.subplot(1, 2, 1)
-    plt.plot(feat_name, importance, "-o")
+    plt.stem(feat_name[:-1], importance, "-o")
     plt.xticks(rotation=-90)
     plt.title("Global Importance")
 
     plt.subplot(1, 2, 2)
-    plt.plot(feat_name, contribution, "-o")
+    plt.stem(feat_name, contribution, "-o")
     plt.xticks(rotation=-90)
     plt.title("Contribution")
 
