@@ -17,12 +17,17 @@ This work is licensed under a Creative Commons Attribution-NonCommercial-NoDeriv
 pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.1
 ```
 
-### Install from source
+### Install from source (Recommended)
+
+> This method is recommended because the package is under development and there may be a lot of changes in the code.
 
 ```bash
 git clone git@github.com:CaglarAytekin/LEURN_DEMO.git
 cd LEURN_DEMO
+# for normal installation
 pip install .
+# for development installation (changes in the code will be reflected immediately)
+pip install -e .
 ```
 
 ## Running the demo
@@ -68,16 +73,21 @@ plot_explaination(explain, "/tmp/explain.png")
 ```python
 from leurn import LEURN, load_data, plot_explaination, read_partition_process_data, train_model
 import os
-if not os.path.exists('tmp'):
-   os.makedirs('tmp')
+
+output_path = os.path.join(os.getcwd(), "leurn_example")
+if not os.path.exists(output_path):
+    print("Creating directory: {}".format(output_path))
+    os.makedirs(output_path)
+
 data = load_data("housing")
-X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean = read_partition_process_data(
+X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean, X_std = read_partition_process_data(
     data, target_name="median_house_value", task_type="reg"
 )
-model: LEURN = train_model(X_train, y_train, X_val, y_val, task_type="reg", output_path="tmp", epoch_no=100)
-test_sample=X_test[0:1,:]
+
+model: LEURN = train_model(X_train, y_train, X_val, y_val, task_type="reg", output_path=output_path, epoch_no=1)
+test_sample=X_test[0:1,:] # take one 1 sample per explanation
 explain = model.explain(test_sample, feat_names=X_names, y_max=y_max)
-plot_explaination(explain, "tmp/explain.png")
+plot_explaination(explain, os.path.join(output_path, "explain.png"))
 ```
 
 ![Explanation](assets/explain.png)

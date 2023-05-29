@@ -4,7 +4,9 @@ Attribution-NonCommercial-NoDerivatives 4.0 International
 Copyright (c) 2023 Caglar Aytekin
 """
 # Imports
+from logging import warn
 from typing import Any, List, Optional, Sequence, Tuple, Union
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -200,6 +202,15 @@ class LEURN(Model):
         assert (
             len(feat_names) == self.input_dim
         ), f"feat_names must have length {self.input_dim}, given {len(feat_names)}"
+
+        if isinstance(test_sample, pd.DataFrame):
+            test_sample = test_sample.values
+        elif isinstance(test_sample, tf.data.Dataset):
+            pass
+        if isinstance(test_sample, np.ndarray):
+            test_sample = tf.convert_to_tensor(test_sample, dtype=tf.float32)
+            if test_sample.shape[0] != 1:
+                warnings.warn("Explain method only works for single sample, given multiple samples")
 
         # Get output, taus, embeddings
         _, embed = self(test_sample, training=False)
