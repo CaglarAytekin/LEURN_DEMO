@@ -1,7 +1,10 @@
-from leurn import LEURN, load_data, plot_explaination, read_partition_process_data, train_model
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-output_path = os.path.join(os.getcwd(), "leurn_example")
+from leurn import LEURN, load_data, plot_explaination, read_partition_process_data, train_model
+
+# ======== For regression task
+output_path = os.path.join(os.getcwd(), "leurn_housing_example")
 if not os.path.exists(output_path):
     print("Creating directory: {}".format(output_path))
     os.makedirs(output_path)
@@ -12,6 +15,22 @@ X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean, X_std = 
 )
 
 model: LEURN = train_model(X_train, y_train, X_val, y_val, task_type="reg", output_path=output_path, epoch_no=1)
-test_sample=X_test[0:1,:]
+test_sample = X_test[0:1, :]
+explain = model.explain(test_sample, feat_names=X_names, y_max=y_max)
+plot_explaination(explain, os.path.join(output_path, "explain.png"))
+
+
+# ======== For classification task
+output_path = os.path.join(os.getcwd(), "leurn_iris_example")
+if not os.path.exists(output_path):
+    print("Creating directory: {}".format(output_path))
+    os.makedirs(output_path)
+
+data = load_data("iris")
+X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean, X_std = read_partition_process_data(
+    data, target_name="target", task_type="cls"
+)
+model: LEURN = train_model(X_train, y_train, X_val, y_val, task_type="cls", output_path=output_path, epoch_no=1)
+test_sample = X_test[0:1, :]
 explain = model.explain(test_sample, feat_names=X_names, y_max=y_max)
 plot_explaination(explain, os.path.join(output_path, "explain.png"))

@@ -38,6 +38,9 @@ def read_partition_process_data(filename: Union[str, pd.DataFrame], target_name:
         raise ValueError("filename must be a string or a pandas dataframe")
 
     # "median_house_value"
+    assert (
+        target_name in data_frame.columns
+    ), f"target_name={target_name} must be one of the columns in the data frame: {data_frame.columns}"
     X_df = data_frame.drop([target_name], axis=1)  # FEATURES
     y_df = data_frame[target_name]  # TARGET
     X_names = X_df.columns  # feature names
@@ -77,15 +80,15 @@ def read_partition_process_data(filename: Union[str, pd.DataFrame], target_name:
         y_val = y_val / y_max
         y_test = y_test / y_max
         y_max = tf.cast(y_max, dtype=tf.float32)
-        
-    #Standardize the dataset:
-    X_mean=np.mean(X_train,axis=0,keepdims=True)
-    X_std=np.std(X_train,axis=0,keepdims=True)
-    X_train=(X_train-X_mean)/(X_std+1e-6)
-    X_val=(X_val-X_mean)/(X_std+1e-6)
-    X_test=(X_test-X_mean)/(X_std+1e-6)
 
-    return X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean,X_std
+    # Standardize the dataset:
+    X_mean = np.mean(X_train, axis=0, keepdims=True)
+    X_std = np.std(X_train, axis=0, keepdims=True)
+    X_train = (X_train - X_mean) / (X_std + 1e-6)
+    X_val = (X_val - X_mean) / (X_std + 1e-6)
+    X_test = (X_test - X_mean) / (X_std + 1e-6)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test, y_max, X_names, X_mean, X_std
 
 
 def prepare_dataset_for_tf(X_tr, Y_tr, X_val, Y_val, batch_no):
@@ -139,13 +142,7 @@ def train_model(
         quantization_regions=quantization_regions,
         dropout_rate=dropout_rate,
     )
-    model_config = dict(
-        n_layers=n_layers,
-        input_dim=X_val.shape[1],
-        n_classes=class_no,
-        quantization_regions=quantization_regions,
-        dropout_rate=dropout_rate,
-    )
+    model_config = model.get_config()
     with open(os.path.join(output_path, "model_config.json"), "w") as f:
         json.dump(model_config, f)
 
@@ -210,27 +207,35 @@ def plot_explaination(Explanation: pd.DataFrame, output_path: str):
     import seaborn as sns
     from matplotlib import pyplot as plt
 
+    sns.set()
+
     output_path = os.path.realpath(os.path.expanduser(output_path))
 
-    sns.set()
-    feat_name = Explanation["Feature Name"].values
-    importance = Explanation["Global_Importance"].values[:-1]
-    importance = np.array(importance)
-    importance = importance.astype(np.float)
-    contribution = Explanation["Contribution"].values
+    groups = Explanation.groupby("Class")
+    n_classes = len(groups)
+    n_features = Explanation["Feature Name"].shape[0] // n_classes
+    plt.figure(figsize=(30 if n_features >= 20 else 20, 8 * n_classes), dpi=200)
 
-    n_features = len(feat_name)
-    plt.figure(figsize=(30 if n_features >= 20 else 20, 8), dpi=200)
+    for i, (group_name, group) in enumerate(groups):
+        feat_name = group["Feature Name"].values
+        importance = group["Global_Importance"].values.astype(np.float)
+        contribution = group["Contribution"].values.astype(np.float)
 
-    plt.subplot(1, 2, 1)
-    plt.stem(feat_name[:-1], importance, "-o")
-    plt.xticks(rotation=-90)
-    plt.title("Global Importance")
+        if n_classes > 1:
+            prefix = f"[Class {group_name}]"
+        else:
+            prefix = ""
 
-    plt.subplot(1, 2, 2)
-    plt.stem(feat_name, contribution, "-o")
-    plt.xticks(rotation=-90)
-    plt.title("Contribution")
+        # ommit the score here
+        plt.subplot(n_classes, 2, i * 2 + 1)
+        plt.stem(feat_name[:-1], importance[:-1], "-o")
+        plt.xticks(rotation=-90, fontsize=15)
+        plt.title(f"{prefix}Global Importance", fontsize=20)
+
+        plt.subplot(n_classes, 2, i * 2 + 2)
+        plt.stem(feat_name, contribution, "-o")
+        plt.xticks(rotation=-90, fontsize=15)
+        plt.title(f"{prefix}Contribution", fontsize=20)
 
     plt.tight_layout()
     plt.savefig(output_path)

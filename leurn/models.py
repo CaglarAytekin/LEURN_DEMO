@@ -4,9 +4,9 @@ Attribution-NonCommercial-NoDerivatives 4.0 International
 Copyright (c) 2023 Caglar Aytekin
 """
 # Imports
-from logging import warn
-from typing import Any, List, Optional, Sequence, Tuple, Union
 import warnings
+from logging import warn
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -14,6 +14,28 @@ import tensorflow as tf
 from keras import Model, Sequential
 from keras.engine import data_adapter
 from keras.layers import BatchNormalization, Concatenate, Dense, Dropout, Input, Layer
+
+
+def _calculate_explainability(contrib, weight_now, bias_now, y_max, feat_names, feat_no):
+    if y_max is None:
+        y_max = 1  # for binary classification and multiclass classification
+
+    #  DEPTH x QUANT x FEATURE
+    contrib_bias_added = (tf.reduce_sum(contrib) + bias_now) * contrib / (tf.reduce_sum(contrib))
+    Final_Contributions = tf.reduce_sum(contrib_bias_added, 0) * y_max
+    Final_Feat_Name = feat_names
+
+    # GLOBAL FEATURE IMPORTANCE (ROUGH)
+    weight_now = tf.math.abs(np.reshape(weight_now, [-1, feat_no]))
+    Global_Feat_Imp = tf.reduce_sum(weight_now, 0)
+    Global_Feat_Imp = Global_Feat_Imp / tf.reduce_sum(Global_Feat_Imp)
+    Final_Feat_Name = np.concatenate([Final_Feat_Name, np.array(["score"])])
+    Global_Feat_Imp = np.concatenate([Global_Feat_Imp, np.array([np.NaN])])
+    Final_Contributions = np.concatenate([Final_Contributions, np.array([np.sum(Final_Contributions)])])
+    explanation = pd.DataFrame(
+        {"Feature Name": Final_Feat_Name, "Global_Importance": Global_Feat_Imp, "Contribution": Final_Contributions}
+    )
+    return explanation
 
 
 class AddTauLayer(Layer):
@@ -87,11 +109,11 @@ class LEURN(Model):
             dropout_rate: dropout out rate
         """
         super().__init__(name=name)
-        self.input_dim = input_dim
-        self.n_layers = n_layers
+        self.input_dim = int(input_dim)
+        self.n_layers = int(n_layers)
         self.n_classes = int(n_classes)
-        self.quantization_regions = quantization_regions
-        self.dropout_rate = dropout_rate
+        self.quantization_regions = int(quantization_regions)
+        self.dropout_rate = float(dropout_rate)
 
         # ========  first embedding layer
         self.first_tau = AddTauLayer()
@@ -120,6 +142,7 @@ class LEURN(Model):
         # If class no is zero, no final activation (regression)
         if self.n_classes == 0:  # If class no is zero, no final activation (regression)
             output = Dense(1, kernel_initializer=tf.keras.initializers.GlorotNormal(), name="fully_connected_output")
+            self.task_type = "reg"
         elif self.n_classes == 1:  # If class no is one, activation is sigmoid (binary classification)
             output = Dense(
                 1,
@@ -127,6 +150,7 @@ class LEURN(Model):
                 activation="sigmoid",
                 name="fully_connected_output",
             )
+            self.task_type = "bin"
         elif self.n_classes > 1:  # If class no larger than one, activation is softmax (multiclass classification)
             output = Dense(
                 int(self.n_classes),
@@ -134,6 +158,7 @@ class LEURN(Model):
                 activation="softmax",
                 name="fully_connected_output",
             )
+            self.task_type = "cls"
         else:
             raise ValueError(f"n_classes must be a positive integer, given {self.n_classes}")
         self.dropout = Dropout(self.dropout_rate)
@@ -194,6 +219,10 @@ class LEURN(Model):
     ) -> pd.DataFrame:
         """
         Finds Contributions of Each Rule in Each Layer in Input Subspace and Saves Them
+
+        Returns:
+            pd.DataFrame: Dataframe with contributions of each rule in each layer in input subspace,
+                with columns ["Class", "Feature Name", "Global_Importance", "Contribution"]
         """
         if self.n_classes == 0 and y_max is None:
             raise ValueError("y_max must be provided for regression models")
@@ -211,38 +240,64 @@ class LEURN(Model):
             test_sample = tf.convert_to_tensor(test_sample, dtype=tf.float32)
             if test_sample.shape[0] != 1:
                 warnings.warn("Explain method only works for single sample, given multiple samples")
+            if test_sample.ndim == 1:
+                test_sample = tf.expand_dims(test_sample, 0)
 
         # Get output, taus, embeddings
-        _, embed = self(test_sample, training=False)
+        # embed_dim = input_dim * (n_layers + 1))
+        _, embed = self(test_sample, training=False)  # [1, embed_dim]
 
-        feat_no = feat_names.__len__()
-        embed = np.swapaxes(embed, 1, 0)
+        feat_no = len(feat_names)
+        embed = np.swapaxes(embed, 1, 0)  # [embed_dim, 1]
 
         # Get the weight and bias of last layer
         output_layer = self.output_layer
-        weight_now = output_layer.weights[0].numpy()
-        bias_now = output_layer.weights[1].numpy()
+        weight_now = output_layer.weights[0].numpy()  # [embed_dim, n_classes]
+        bias_now = output_layer.weights[1].numpy()  # [n_classes]
 
         # Contributions to tau or final score (last layer) are calculated via weight*embedding
-        contrib = weight_now * embed
-        contrib = np.reshape(contrib, [-1, feat_no])
+        n_classes = 1 if self.task_type in ("reg", "bin") else self.n_classes
+        contrib = weight_now * embed  # [embed_dim, n_classes]
+        contrib = np.reshape(contrib, [-1, feat_no, n_classes])
 
-        #   DEPTH x QUANT x FEATURE
-        contrib_bias_added = (tf.reduce_sum(contrib) + bias_now) * contrib / (tf.reduce_sum(contrib))
-        Final_Contributions = tf.reduce_sum(contrib_bias_added, 0) * y_max
-        Final_Feat_Name = feat_names
+        # ======== regression or binary classification ========
+        if n_classes == 1:
+            explaination = _calculate_explainability(
+                contrib=contrib[:, :, 0],
+                weight_now=weight_now,
+                bias_now=bias_now,
+                y_max=y_max,
+                feat_names=feat_names,
+                feat_no=feat_no,
+            )
+            explaination["Class"] = 1
+        # ======== multiclass classification ========
+        else:
+            # repeat for each class
+            explaination = []
+            for cls in range(n_classes):
+                e = _calculate_explainability(
+                    contrib=contrib[:, :, cls],
+                    weight_now=weight_now[:, cls : cls + 1],
+                    bias_now=bias_now[cls : cls + 1],
+                    y_max=y_max,
+                    feat_names=feat_names,
+                    feat_no=feat_no,
+                )
+                e["Class"] = cls
+                explaination.append(e)
+            explaination = pd.concat(explaination)
+        return explaination
 
-        # GLOBAL FEATURE IMPORTANCE (ROUGH)
-        weight_now = tf.math.abs(np.reshape(weight_now, [-1, feat_no]))
-        Global_Feat_Imp = tf.reduce_sum(weight_now, 0)
-        Global_Feat_Imp = Global_Feat_Imp / tf.reduce_sum(Global_Feat_Imp)
-        Final_Feat_Name = np.concatenate([Final_Feat_Name, np.array(["score"])])
-        Global_Feat_Imp = np.concatenate([Global_Feat_Imp, np.array(["-"])])
-        Final_Contributions = np.concatenate([Final_Contributions, np.array([np.sum(Final_Contributions)])])
-        explanation = pd.DataFrame(
-            {"Feature Name": Final_Feat_Name, "Global_Importance": Global_Feat_Imp, "Contribution": Final_Contributions}
+    def get_config(self) -> Dict[str, Any]:
+        cfg = super().get_config()
+        cfg.update(
+            dict(
+                n_layers=self.n_layers,
+                input_dim=self.input_dim,
+                n_classes=self.n_classes,
+                quantization_regions=self.quantization_regions,
+                dropout_rate=self.dropout_rate,
+            )
         )
-        return explanation
-
-
-
+        return cfg
