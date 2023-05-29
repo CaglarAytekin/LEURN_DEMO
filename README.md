@@ -61,17 +61,6 @@ Running the tensorboard for monitoring the training process
 tensorboard --logdir=/tmp/housing
 ```
 
-Load the trained model and make local explanations
-
-```python
-from leurn import LEURN, plot_explaination
-import json
-model_config = json.load(open("/tmp/housing/model_config.json"))
-model = LEURN(**model_config)
-model.load_weights("/tmp/housing/best_model")
-explain = model.explain(X_test[0:1,:], feat_names=X_names, y_max=y_max)
-plot_explaination(explain, "/tmp/explain.png")
-```
 
 ## Example
 
