@@ -14,7 +14,7 @@ This work is licensed under a Creative Commons Attribution-NonCommercial-NoDeriv
 [Create personal access token on github](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 
 ```bash
-pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.1
+pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.2
 ```
 
 ### Install from source (Recommended)
