@@ -16,8 +16,10 @@ Refer to example.py or leurn/demo.py for a quick demo.
 
 [Create personal access token on github](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
 
+<!-- pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.2 -->
+
 ```bash
-pip install git+https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/CaglarAytekin/LEURN_DEMO.git@v0.2
+pip install git+https://github.com/CaglarAytekin/LEURN_DEMO.git@v0.2
 ```
 
 ### Install from source (Recommended)
