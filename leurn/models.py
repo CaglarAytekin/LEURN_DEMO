@@ -97,6 +97,7 @@ class LEURN(Model):
         n_layers: int = 10,
         quantization_regions: int = 5,
         dropout_rate: float = 0.1,
+        dim_red_coeff: int = 0,
         name: Optional[str] = None,
     ):
         """
@@ -114,6 +115,7 @@ class LEURN(Model):
         self.n_classes = int(n_classes)
         self.quantization_regions = int(quantization_regions)
         self.dropout_rate = float(dropout_rate)
+        self.dim_red_coeff = int(dim_red_coeff)
 
         # ========  first embedding layer
         self.first_tau = AddTauLayer()
@@ -122,20 +124,44 @@ class LEURN(Model):
 
         # ======== middle layers
         for i in range(self.n_layers):
-            setattr(
-                self,
-                f"tau_finder{i + 1}",
-                Sequential(
-                    [
-                        Dropout(self.dropout_rate),
-                        Dense(
-                            input_dim,
-                            kernel_initializer=tf.keras.initializers.GlorotNormal(),
-                            name=f"fully_connected_{i+1}",
-                        ),
-                    ]
-                ),
-            )
+            if self.dim_red_coeff>0:
+                setattr(
+                    self,
+                    f"tau_finder{i + 1}",
+                    Sequential(
+                        [
+                            Dropout(self.dropout_rate),
+                            Dense(
+                                input_dim//self.dim_red_coeff,
+                                kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                name=f"dimension_reduction_{i+1}",
+                            ),
+                            Dense(
+                                input_dim,
+                                kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                name=f"fully_connected_{i+1}",
+                            ),
+                        ]
+                    ),
+                )
+            else:
+                setattr(
+                    self,
+                    f"tau_finder{i + 1}",
+                    Sequential(
+                        [
+                            Dropout(self.dropout_rate),
+                            Dense(
+                                input_dim,
+                                kernel_initializer=tf.keras.initializers.GlorotNormal(),
+                                name=f"fully_connected_{i+1}",
+                            ),
+                        ]
+                    ),
+                )                
+                
+                
+                
             setattr(self, f"embedding{i + 1}", EmbeddingBlock(self.quantization_regions, name=f"embedding_{i + 1}"))
 
         # ======== Output layer
