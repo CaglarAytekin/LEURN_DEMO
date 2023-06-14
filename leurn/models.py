@@ -3,7 +3,7 @@ Attribution-NonCommercial-NoDerivatives 4.0 International
 
 Copyright (c) 2023 Caglar Aytekin
 """
-# Imports
+import os
 import warnings
 from logging import warn
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -70,6 +70,14 @@ class EmbeddingBlock(Layer):
         super().__init__(name=name)
         self.bn = BatchNormalization(axis=-1)
         self.quantization_regions = int(quantization_regions)
+        self.input_dim = None
+
+    def build(self, input_shape):
+        self.input_dim = input_shape[-1]
+        return super().build(input_shape)
+
+    def get_output_shape_at(self, node_index):
+        return (None, self.input_dim)
 
     def call(self, inputs: Tuple[tf.Tensor, tf.Tensor], training=None) -> tf.Tensor:
         assert isinstance(inputs, (tuple, list)) and len(inputs) == 2, "Input must be a tuple of (embeddings, tau)"
@@ -108,6 +116,7 @@ class LEURN(Model):
             n_layers: number of hidden layers
             quantization_regions: quantization type (see embedding block)
             dropout_rate: dropout out rate
+            dim_red_coeff: dimension reduction coefficient, if >0, then the number of neurons in tau_finder is `input_dim/dim_red_coeff`
         """
         super().__init__(name=name)
         self.input_dim = int(input_dim)
@@ -124,7 +133,7 @@ class LEURN(Model):
 
         # ======== middle layers
         for i in range(self.n_layers):
-            if self.dim_red_coeff>0:
+            if self.dim_red_coeff > 0:
                 setattr(
                     self,
                     f"tau_finder{i + 1}",
@@ -132,7 +141,7 @@ class LEURN(Model):
                         [
                             Dropout(self.dropout_rate),
                             Dense(
-                                input_dim//self.dim_red_coeff,
+                                input_dim // self.dim_red_coeff,
                                 kernel_initializer=tf.keras.initializers.GlorotNormal(),
                                 name=f"dimension_reduction_{i+1}",
                             ),
@@ -158,10 +167,8 @@ class LEURN(Model):
                             ),
                         ]
                     ),
-                )                
-                
-                
-                
+                )
+
             setattr(self, f"embedding{i + 1}", EmbeddingBlock(self.quantization_regions, name=f"embedding_{i + 1}"))
 
         # ======== Output layer
@@ -190,6 +197,9 @@ class LEURN(Model):
         self.dropout = Dropout(self.dropout_rate)
         self.output_layer = output
 
+        # ======== build the model
+        self.build((None, self.input_dim))
+
     def train_step(self, data):
         """Just ignore the embeddings when training"""
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
@@ -209,6 +219,12 @@ class LEURN(Model):
         # Updates stateful loss metrics.
         self.compute_loss(x, y, y_pred, sample_weight)
         return self.compute_metrics(x, y, y_pred, sample_weight)
+
+    def functional(self) -> Model:
+        """Convert the model to a functional model"""
+        inputs = Input(shape=(self.input_dim,))
+        outputs = self.call(inputs)
+        return Model(inputs=inputs, outputs=outputs)
 
     def call(self, inputs, training=None):
         assert inputs.shape[-1] == self.input_dim, (
@@ -230,7 +246,7 @@ class LEURN(Model):
 
             # Calculate embedding with new tau
             embedding_now = getattr(self, f"embedding{i + 1}")((inputs, tau), training=training)
-            embeddings = self.concat([embeddings, embedding_now])
+            embeddings = Concatenate(axis=-1)([embeddings, embedding_now])
 
         embeddings = self.dropout(embeddings, training=training)
         outputs = self.output_layer(embeddings)
@@ -327,3 +343,34 @@ class LEURN(Model):
             )
         )
         return cfg
+
+    def visualize_model(self, expand_nested_ops: bool = False):
+        """ Visualize the model using netron """
+        try:
+            import netron
+        except ImportError:
+            raise ImportError("Please install netron to visualize the model, `pip install netron`")
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmpdir:
+            m = self.functional()
+
+            if expand_nested_ops:
+                try:
+                    import tf2onnx
+                except ImportError:
+                    raise ImportError("Please install tf2onnx to expand nested ops, `pip install tf2onnx`")
+                try:
+                    import onnx
+                except ImportError:
+                    raise ImportError("Please install onnx to expand nested ops, `pip install onnx`")
+
+                m = tf2onnx.convert.from_keras(m)[0]
+                m = onnx.shape_inference.infer_shapes(m)
+                onnx.save_model(m, os.path.join(tmpdir, "model.onnx"))
+                netron.start(os.path.join(tmpdir, "model.onnx"))
+            else:
+                m.save(os.path.join(tmpdir, "model.h5"))
+                netron.start(os.path.join(tmpdir, "model.h5"))
+
+            input("Press Enter to exit...")
