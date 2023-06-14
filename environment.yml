@@ -15,11 +15,13 @@ dependencies:
     - openml
 
     - pip:
-          - tensorflow>=2.9.1
-          - keras>=2.9.0
+          - tensorflow>=2.8.0,<2.11.0
+          - keras
           - seaborn
           - numpy
           - scipy
           - matplotlib
           - openpyxl
           - pandas
+          - urllib3<=2.0
+          - netron
