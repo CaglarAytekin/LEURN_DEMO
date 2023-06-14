@@ -11,9 +11,30 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from keras import Model, Sequential
-from keras.engine import data_adapter
-from keras.layers import BatchNormalization, Concatenate, Dense, Dropout, Input, Layer
+from tensorflow.keras import Model, Sequential
+from tensorflow.keras.layers import BatchNormalization, Concatenate, Dense, Dropout, Input, Layer
+
+def unpack_x_y_sample_weight(data):
+    """Unpacks user-provided data tuple.
+
+    @keras.engine.unpack_x_y_sample_weight
+    """
+    if isinstance(data, list):
+        data = tuple(data)
+    if not isinstance(data, tuple):
+        return (data, None, None)
+    elif len(data) == 1:
+        return (data[0], None, None)
+    elif len(data) == 2:
+        return (data[0], data[1], None)
+    elif len(data) == 3:
+        return (data[0], data[1], data[2])
+    else:
+        error_msg = (
+            "Data is expected to be in format `x`, `(x,)`, `(x, y)`, "
+            "or `(x, y, sample_weight)`, found: {}"
+        ).format(data)
+        raise ValueError(error_msg)
 
 
 def _calculate_explainability(contrib, weight_now, bias_now, y_max, feat_names, feat_no):
@@ -202,7 +223,7 @@ class LEURN(Model):
 
     def train_step(self, data):
         """Just ignore the embeddings when training"""
-        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        x, y, sample_weight = unpack_x_y_sample_weight(data)
         # Run forward pass.
         with tf.GradientTape() as tape:
             y_pred, _ = self(x, training=True)
@@ -214,7 +235,7 @@ class LEURN(Model):
 
     def test_step(self, data):
         """Just ignore the embeddings when scoring"""
-        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        x, y, sample_weight = unpack_x_y_sample_weight(data)
         y_pred, _ = self(x, training=False)
         # Updates stateful loss metrics.
         self.compute_loss(x, y, y_pred, sample_weight)
@@ -332,7 +353,10 @@ class LEURN(Model):
         return explaination
 
     def get_config(self) -> Dict[str, Any]:
-        cfg = super().get_config()
+        try:
+            cfg = super().get_config()
+        except NotImplementedError:
+            cfg = {}
         cfg.update(
             dict(
                 n_layers=self.n_layers,

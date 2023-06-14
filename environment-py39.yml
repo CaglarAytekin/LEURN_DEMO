@@ -1,0 +1,28 @@
+name: leurn-py39
+
+channels:
+    - defaults
+    - nvidia
+    - conda-forge
+
+dependencies:
+    - pip=21.1.3
+    - python=3.9
+    - nvidia::cuda-nvcc=11.8.0
+    - conda-forge::cudatoolkit=11.8.0
+    - scikit-learn
+    - openml
+
+    - pip:
+          - nvidia-cudnn-cu11==8.6.0.163
+          - tensorflow==2.12.*
+          - keras
+          - tensorboard
+          - seaborn
+          - numpy
+          - scipy
+          - matplotlib
+          - openpyxl
+          - pandas
+          - urllib3<=2.0
+          - netron

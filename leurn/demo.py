@@ -60,6 +60,7 @@ def main():
     else:
         for device in physical_devices:
             tf.config.experimental.set_memory_growth(device, True)
+            print("Running on GPU:", device)
 
     # HYPERPARAMETERS
     lr_reduction = 5  # reduction rate of learning rate per cycle

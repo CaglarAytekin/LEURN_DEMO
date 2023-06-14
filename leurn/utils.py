@@ -112,7 +112,7 @@ def train_model(
     n_layers: int = 10,
     quantization_regions: int = 5,
     dropout_rate: float = 0.1,
-    dim_red_coeff : int = 0,
+    dim_red_coeff: int = 0,
     batch_size: int = 512,
     learning_rate: float = 5e-3,
     n_train_cycles: int = 2,
@@ -142,7 +142,7 @@ def train_model(
         n_classes=class_no,
         quantization_regions=quantization_regions,
         dropout_rate=dropout_rate,
-        dim_red_coeff=dim_red_coeff
+        dim_red_coeff=dim_red_coeff,
     )
     model_config = model.get_config()
     with open(os.path.join(output_path, "model_config.json"), "w") as f:
